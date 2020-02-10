@@ -36,16 +36,16 @@ class Converter
     ];
 
     protected $colors = [
-        'primary'   => 'blue-500',
-        'secondary' => 'gray-500',
-        'success'   => 'green-500',
-        'danger'    => 'red-500',
-        'warning'   => 'yellow-500',
-        'info'      => 'teal-500',
-        'light'     => 'gray-100',
-        'dark'      => 'gray-900',
+        'primary'   => 'blue',
+        'secondary' => 'gray',
+        'success'   => 'green',
+        'danger'    => 'red',
+        'warning'   => 'yellow',
+        'info'      => 'teal',
+        'light'     => 'gray',
+        'dark'      => 'black',
         'white'     => 'white',
-        'muted'     => 'gray-500',
+        'muted'     => 'gray',
     ];
 
     /**
@@ -281,7 +281,7 @@ class Converter
         }
 
         foreach ($this->colors as $btColor => $twColor) {
-            $this->searchAndReplace('border-'.$btColor, 'border-'.$twColor);
+            $this->searchAndReplace('border-'.$btColor, 'border-'.$twColor.'-500');
         }
 
         foreach ([
@@ -299,9 +299,9 @@ class Converter
     protected function convertColors()
     {
         foreach ($this->colors as $btColor => $twColor) {
-            $this->searchAndReplace('text-'.$btColor, 'text-'.$twColor);
-            $this->searchAndReplace('bg-'.$btColor, 'bg-'.$twColor);
-            $this->searchAndReplace('table-'.$btColor, 'bg-'.$twColor);
+            $this->searchAndReplace('text-'.$btColor, 'text-'.$twColor.'-500');
+            $this->searchAndReplace('bg-'.$btColor, 'bg-'.$twColor.'-500');
+            $this->searchAndReplace('table-'.$btColor, 'bg-'.$twColor.'-500');
             // $this->searchAndReplace('bg-gradient-'.$btColor, 'bg-'.$twColor);
         }
     }
@@ -526,8 +526,8 @@ class Converter
         }
 
         foreach ($this->colors as $btColor => $twColor) {
-            $this->searchAndReplace('btn-'.$btColor, 'text-'.$twColor.'-100 bg-'.$twColor.' hover:bg-'.$twColor.'-400');
-            $this->searchAndReplace('btn-outline-'.$btColor, 'text-'.$twColor.'-600 border-'.$twColor.' bg-white hover:bg-'.$twColor.'-400 hover:text-'.$twColor.'-800');
+            $this->searchAndReplace('btn-'.$btColor, 'text-'.$twColor.'-100 bg-'.$twColor.'-500 hover:bg-'.$twColor.'-400');
+            $this->searchAndReplace('btn-outline-'.$btColor, 'text-'.$twColor.'-600 border-'.$twColor.'-500 bg-white hover:bg-'.$twColor.'-400 hover:text-'.$twColor.'-800');
         }
     }
 
@@ -539,7 +539,7 @@ class Converter
         $this->searchAndReplace('card-text', 'mb-0');
         $this->searchAndReplace('card-subtitle', '-mt-2 mb-0');
         $this->searchAndReplace('card-link', 'ml-6');
-        $this->searchAndReplace('card-header', 'py-3 px-6 mb-0 bg-gray-200 border-b-1 border-gray-400 text-gray-900');
+        $this->searchAndReplace('card-header', 'py-3 px-6 mb-0 bg-gray-200 border-b-1 border-gray-400 text-black');
         $this->searchAndReplace('card-footer', 'py-3 px-6 bg-gray-200 border-t-1 border-gray-400');
         $this->searchAndReplace('card-header-tabs', 'border-b-0 -ml-2 -mb-3');
         $this->searchAndReplace('card-header-pills', '-ml-3 -mr-3');
@@ -558,7 +558,7 @@ class Converter
         $this->searchAndReplace('dropdown-toggle', ' inline-block w-0 h-0 ml-1 align border-b-0 border-t-1 border-r-1 border-l-1');
         $this->searchAndReplace('dropdown-menu', ' absolute left-0 z-50 float-left hidden py-2 mt-1 text-base bg-white border border-gray-400 rounded');
         $this->searchAndReplace('dropdown-divider', 'h-0 my-2 overflow-hidden border-t-1 border-gray-400');
-        $this->searchAndReplace('dropdown-item', 'block w-full py-1 px-6 font-normal text-gray-900 whitespace-no-wrap border-0');
+        $this->searchAndReplace('dropdown-item', 'block w-full py-1 px-6 font-normal text-black whitespace-no-wrap border-0');
         $this->searchAndReplace('dropdown-header', 'block py-2 px-6 mb-0 text-sm text-gray-600 whitespace-no-wrap');
     }
 
@@ -598,7 +598,7 @@ class Converter
     protected function convertInputGroups()
     {
         $this->searchAndReplace('input-group', 'relative flex items-stretch w-full');
-        $this->searchAndReplace('input-group-addon', 'py-1 px-2 mb-1 text-base font-normal leading-normal text-gray-900 text-center bg-gray-400 border border-4 border-gray-200 rounded');
+        $this->searchAndReplace('input-group-addon', 'py-1 px-2 mb-1 text-base font-normal leading-normal text-black text-center bg-gray-400 border border-4 border-gray-200 rounded');
         $this->searchAndReplace('input-group-addon-lg', 'py-2 px-3 mb-0 text-lg');
         $this->searchAndReplace('input-group-addon-sm', 'py-3 px-4 mb-0 text-lg');
     }
