@@ -12,80 +12,50 @@ class Converter
 
     protected $lastSearches = [];
 
-    protected $mediaOptions = [
-        'xs' => 'sm',
-        'sm' => 'sm',
-        'md' => 'md',
-        'lg' => 'lg',
-        'xl' => 'xl',
-    ];
+    /** @var \Awssat\Tailwindo\Framework\Framework */
+    protected $framework;
 
-    protected $grid = [
-        '1'  => '1/6',
-        '2'  => '1/5',
-        '3'  => '1/4',
-        '4'  => '1/3',
-        '5'  => '2/5',
-        '6'  => '1/2',
-        '7'  => '3/5',
-        '8'  => '2/3',
-        '9'  => '3/4',
-        '10' => '4/5',
-        '11' => '5/6',
-        '12' => 'full',
-    ];
+    protected $generateComponents = false;
 
-    protected $colors = [
-        'primary'   => 'blue',
-        'secondary' => 'gray',
-        'success'   => 'green',
-        'danger'    => 'red',
-        'warning'   => 'yellow',
-        'info'      => 'teal',
-        'light'     => 'gray',
-        'dark'      => 'black',
-        'white'     => 'white',
-        'muted'     => 'gray',
-    ];
+    protected $components = [];
 
-    /**
-     * initiate the converter class.
-     *
-     * @param string $content
-     *
-     * @return Converter
-     */
-    public function __construct($content = null)
+    /** @var string|null */
+    protected $prefix;
+
+    public function __construct(?string $content = null)
     {
         if (!empty($content)) {
-            $this->givenContent = $content;
+            $this->setContent($content);
         }
+    }
+
+    public function setContent(string $content): self
+    {
+        $this->givenContent = $content;
+        $this->lastSearches = [];
+        $this->components = [];
 
         return $this;
     }
 
-    /**
-     * Set the content.
-     *
-     * @param string $content
-     *
-     * @return Converter
-     */
-    public function setContent(string $content)
+    public function setFramework(string $framework): self
     {
-        $this->givenContent = $content;
+        $framework = 'Awssat\\Tailwindo\\Framework\\'.ucfirst($framework).'Framework';
+
+        $this->framework = new $framework();
 
         return $this;
+    }
+
+    public function getFramework(): \Awssat\Tailwindo\Framework\Framework
+    {
+        return $this->framework;
     }
 
     /**
      * Is the given content a CSS content or HTML content.
-     *
-     * @param bool $value
-     *
-     * @return Converter
      */
-    public function classesOnly(bool $value)
+    public function classesOnly(bool $value): self
     {
         $this->isCssClassesOnly = $value;
 
@@ -93,598 +63,87 @@ class Converter
     }
 
     /**
-     * Run the conversion.
+     * Is the given content a CSS content or HTML content.
+     */
+    public function setGenerateComponents(bool $value): self
+    {
+        $this->generateComponents = $value;
+
+        return $this;
+    }
+
+    /**
+     * The prefix option allows you to add a custom prefix to all of Tailwind's generated utility classes. This can be really useful when layering Tailwind on top of existing CSS where there might be naming conflicts.
+     *
+     * @param string $prefix
      *
      * @return Converter
      */
-    public function convert()
+    public function setPrefix(string $prefix): self
     {
-        $this->convertGeneral();
-        $this->convertGrid();
-        $this->convertBorders();
-        $this->convertMediaObject();
-        $this->convertColors();
-        $this->convertDisplay();
-        $this->convertSizing();
-        $this->convertFlexElements();
-        $this->convertSpacing();
-        $this->convertText();
-        $this->convertFloats();
-        $this->convertPositioning();
-        $this->convertVisibility();
-        $this->convertAlerts();
-        $this->convertVerticalAlignment();
-        $this->convertBadges();
-        $this->convertBreadcrumb();
-        $this->convertButtons();
-        $this->convertCards();
-        $this->convertDropdowns();
-        $this->convertForms();
-        $this->convertInputGroups();
-        $this->convertListGroups();
-        $this->convertModals();
-        $this->convertNavs();
-        $this->convertPagination();
+        $prefix = trim($prefix);
+        if (!empty($prefix)) {
+            $this->prefix = $prefix;
+        }
+
+        return $this;
+    }
+
+    public function convert(): self
+    {
+        foreach ($this->getFramework()->get() as $item) {
+            foreach ($item as $search => $replace) {
+                $this->searchAndReplace($search, $replace);
+            }
+        }
 
         return $this;
     }
 
     /**
      * Get the converted content.
-     *
-     * @return string
      */
-    public function get()
+    public function get($getComponents = false): string
     {
+        if ($getComponents) {
+            return $this->getComponents();
+        }
+
+        $this->givenContent = preg_replace('/\{tailwindo\|([^\}]+)\}/', '$1', $this->givenContent);
+
         return $this->givenContent;
     }
 
+    public function getComponents(): string
+    {
+        if (!$this->generateComponents) {
+            return '';
+        }
+
+        $result = '';
+        foreach ($this->components as $selector => $classes) {
+            if ($selector == $classes) {
+                continue;
+            }
+
+            $result .= ".{$selector} {\n\t@apply {$classes};\n}\n";
+        }
+
+        return $result;
+    }
+
     /**
-     * Get the number of comitted changes.
-     *
-     * @return int
+     * Get the number of committed changes.
      */
-    public function changes()
+    public function changes(): int
     {
         return $this->changes;
     }
 
     /**
-     * Convert main elements.
-     *
-     * @return null
-     */
-    protected function convertGeneral()
-    {
-        $mainClasses = [
-                'container-fluid' => 'container mx-auto',
-                'container'       => 'container mx-auto',
-
-                //http://getbootstrap.com/docs/4.0/utilities/close-icon/
-                'close' => '',
-
-                //http://getbootstrap.com/docs/4.0/utilities/embed/
-                'embed-responsive'       => '',
-                'embed-responsive-item'  => '',
-                'embed-responsive-21by9' => '',
-                'embed-responsive-16by9' => '',
-                'embed-responsive-4by3'  => '',
-                'embed-responsive-1by1'  => '',
-
-                //http://getbootstrap.com/docs/4.0/utilities/image-replacement/
-                'text-hide' => '',
-
-                //http://getbootstrap.com/docs/4.0/utilities/screenreaders/
-                'sr-only'           => '',
-                'sr-only-focusable' => '',
-
-                //http://getbootstrap.com/docs/4.0/content/images/
-                'img-fluid'     => 'max-w-full h-auto',
-                'img-thumbnail' => 'max-w-full h-auto border-1 border-gray-500 rounded p-1',
-
-                //http://getbootstrap.com/docs/4.0/content/tables/
-                'table'    => 'w-full max-w-full mb-4 bg-transparent',
-                'table-sm' => 'p-1',
-                // 'table-bordered' => '',
-                // 'table-striped' => '',
-                'table-responsive'                => 'block w-full overflow-auto scrolling-touch',
-                'table-responsive-{regex_string}' => 'block w-full overflow-auto scrolling-touch',
-
-                //http://getbootstrap.com/docs/4.0/content/figures/
-                'figure'         => 'inline-block mb-4',
-                'figure-img'     => 'mb-2 leading-none',
-                'figure-caption' => 'text-gray-200',
-
-                'fade'     => 'opacity-0',
-                'show'     => 'opacity-100 block', //need to be checked
-                'disabled' => 'opacity-75',
-
-                //http://getbootstrap.com/docs/4.0/components/collapse/
-                // 'collapse' => 'hidden',
-                'collapsing' => 'relative h-0 overflow-hidden ', //there should be a h-0
-
-                'close' => 'absolute inset-y-0 right-0 px-4 py-3',
-
-                //http://getbootstrap.com/docs/4.0/components/jumbotron/
-                'jumbotron'       => 'py-8 px-4 mb-8 bg-gray-200 rounded',
-                'jumbotron-fluid' => 'pr-0 pl-0 rounded-none',
-
-        ];
-
-        $mainClassesEachScreen = [
-                //name-{screen}-someting
-        ];
-
-        foreach ($mainClasses as $btClass => $twClass) {
-            $this->searchAndReplace($btClass, $twClass);
-        }
-
-        foreach ($mainClassesEachScreen as $btClass => $twClass) {
-            foreach ($this->mediaOptions as $btMedia => $twMedia) {
-                $this->searchAndReplace(
-                        str_replace($btClass, '{screen}', $btMedia),
-                        str_replace($twMedia, '{screen}', $twMedia)
-                );
-            }
-        }
-    }
-
-    /**
-     * Convert grid elements.
-     *
-     * @return null
-     */
-    protected function convertGrid()
-    {
-        $this->searchAndReplace('row', 'flex flex-wrap');
-        $this->searchAndReplace('col', 'flex-grow');
-
-        //col-(xs|sm|md|lg|xl) = (sm|md|lg|xl):flex-grow
-        //ml-(xs|sm|md|lg|xl)-auto = (sm|md|lg|xl):mx-auto:ml-auto
-        //mr-(xs|sm|md|lg|xl)-auto = (sm|md|lg|xl):mx-auto:mr-auto
-        foreach ($this->mediaOptions as $btMedia => $twMedia) {
-            $this->searchAndReplace('col-'.$btMedia, $twMedia.':flex-grow');
-            $this->searchAndReplace('ml-'.$btMedia.'-auto', $twMedia.':ml-auto');
-            $this->searchAndReplace('mr-'.$btMedia.'-auto', $twMedia.':mr-auto');
-
-            //col-btElem
-            //col-(xs|sm|md|lg|xl)-btElem = (sm|md|lg|xl):w-twElem
-            //offset-(xs|sm|md|lg|xl)-btElem = (sm|md|lg|xl):mx-auto
-            foreach ($this->grid as $btElem => $twElem) {
-                if ($btMedia === 'xs') {
-                    $this->searchAndReplace('col-'.$btElem, 'w-'.$twElem);
-                }
-
-                $this->searchAndReplace('col-'.$btMedia.'-'.$btElem, $twMedia.':w-'.$twElem.' pr-4 pl-4');
-
-                //might work :)
-                $this->searchAndReplace('offset-'.$btMedia.'-'.$btElem, $twMedia.':mx-'.$twElem);
-            }
-        }
-    }
-
-    protected function convertMediaObject()
-    {
-        //http://getbootstrap.com/docs/4.0/layout/media-object/
-    }
-
-    protected function convertBorders()
-    {
-        foreach ([
-            'top' => 't',
-            'right' => 'r',
-            'bottom' => 'b',
-            'left' => 'l',
-        ] as $btSide => $twSide) {
-            $this->searchAndReplace('border-'.$btSide, 'border-'.$twSide);
-            $this->searchAndReplace('border-'.$btSide.'-0', 'border-'.$twSide.'-0');
-        }
-
-        foreach ($this->colors as $btColor => $twColor) {
-            $this->searchAndReplace('border-'.$btColor, 'border-'.$twColor.'-500');
-        }
-
-        foreach ([
-                'top' => 't',
-                'right' => 'r',
-                'bottom' => 'b',
-                'left' => 'l',
-                'circle' => 'full',
-                '0' => 'none',
-        ] as $btStyle => $twStyle) {
-            $this->searchAndReplace('rounded-'.$btStyle, 'rounded-'.$twStyle);
-        }
-    }
-
-    protected function convertColors()
-    {
-        foreach ($this->colors as $btColor => $twColor) {
-            $this->searchAndReplace('text-'.$btColor, 'text-'.$twColor.'-500');
-            $this->searchAndReplace('bg-'.$btColor, 'bg-'.$twColor.'-500');
-            $this->searchAndReplace('table-'.$btColor, 'bg-'.$twColor.'-500');
-            // $this->searchAndReplace('bg-gradient-'.$btColor, 'bg-'.$twColor);
-        }
-    }
-
-    protected function convertDisplay()
-    {
-        //.d-none
-        //.d-{sm,md,lg,xl}-none
-
-        foreach ([
-                'none' => 'hidden',
-                'inline' => 'inline',
-                'inline-block' => 'inline-block',
-                'block' => 'block',
-                'table' => 'table',
-                'table-cell' => 'table-cell',
-                'flex' => 'flex',
-                'inline-flex' => 'inline-flex',
-        ] as $btElem => $twElem) {
-            $this->searchAndReplace('d-'.$btElem, $twElem);
-
-            foreach ($this->mediaOptions as $btMedia => $twMedia) {
-                $this->searchAndReplace('d-'.$btMedia.'-'.$btElem, $twMedia.':'.$twElem);
-            }
-        }
-    }
-
-    protected function convertFlexElements()
-    {
-        foreach (array_merge($this->mediaOptions, [''=>'']) as $btMedia => $twMedia) {
-            foreach (['row', 'row-reverse', 'col', 'col-reverse'] as $key) {
-                $this->searchAndReplace('flex'.(empty($btMedia) ? '' : '-').$btMedia.'-'.$key, (empty($twMedia) ? '' : $twMedia.':').'flex-'.$key);
-            }
-
-            foreach (['start', 'end', 'center', 'between', 'around'] as $key) {
-                $this->searchAndReplace('justify-content'.(empty($btMedia) ? '' : '-').$btMedia.'-'.$key, (empty($twMedia) ? '' : $twMedia.':').'justify-'.$key);
-            }
-
-            foreach (['start', 'end', 'center', 'stretch', 'baseline'] as $key) {
-                $this->searchAndReplace('align-items'.(empty($btMedia) ? '' : '-').$btMedia.'-'.$key, (empty($twMedia) ? '' : $twMedia.':').'align-'.$key);
-            }
-
-            foreach (['start', 'end', 'center', 'stretch', 'baseline'] as $key) {
-                $this->searchAndReplace('align-content'.(empty($btMedia) ? '' : '-').$btMedia.'-'.$key, (empty($twMedia) ? '' : $twMedia.':').'content-'.$key);
-            }
-
-            foreach (['start', 'end', 'center', 'stretch', 'baseline'] as $key) {
-                $this->searchAndReplace('align-self'.(empty($btMedia) ? '' : '-').$btMedia.'-'.$key, (empty($twMedia) ? '' : $twMedia.':').'self-'.$key);
-            }
-
-            $this->searchAndReplace('flex'.(empty($btMedia) ? '' : '-').$btMedia.'-wrap', (empty($twMedia) ? '' : $twMedia.':').'flex-wrap');
-            $this->searchAndReplace('flex'.(empty($btMedia) ? '' : '-').$btMedia.'-wrap-reverse', (empty($twMedia) ? '' : $twMedia.':').'flex-wrap-reverse');
-            $this->searchAndReplace('flex'.(empty($btMedia) ? '' : '-').$btMedia.'-nowrap', (empty($twMedia) ? '' : $twMedia.':').'flex-no-wrap');
-
-            $this->searchAndReplace('flex'.(empty($btMedia) ? '' : '-').$btMedia.'-nowrap', (empty($twMedia) ? '' : $twMedia.':').'flex-no-wrap');
-
-            foreach (range(1, 12) as $order) {
-                $this->searchAndReplace('order'.(empty($btMedia) ? '' : '-').$btMedia.'-'.$order, '');
-            }
-        }
-    }
-
-    protected function convertSizing()
-    {
-        foreach ([
-            '25' => '1/4',
-            '50' => '1/2',
-            '75' => '3/4',
-            '100' => 'full',
-        ] as $btClass => $twClass) {
-            $this->searchAndReplace('w-'.$btClass, 'w-'.$twClass);
-
-            //no percentages in TW for heights except for full
-            if ($btClass === '100') {
-                $this->searchAndReplace('h-'.$btClass, 'h-'.$twClass);
-            }
-        }
-
-        $this->searchAndReplace('mw-100', 'max-w-full');
-        $this->searchAndReplace('mh-100', 'max-h-full');
-    }
-
-    protected function convertSpacing()
-    {
-        foreach ($this->mediaOptions as $btMedia => $twMedia) {
-            $this->searchAndReplace('m-'.$btMedia.'-{regex_number}', $twMedia.':m-{regex_number}');
-            $this->searchAndReplace('m{regex_string}-'.$btMedia.'-{regex_number}', $twMedia.':m{regex_string}-{regex_number}');
-            $this->searchAndReplace('p-'.$btMedia.'-{regex_number}', $twMedia.':p-{regex_number}');
-            $this->searchAndReplace('p{regex_string}-'.$btMedia.'-{regex_number}', $twMedia.':p {regex_string}-{regex_number}');
-        }
-    }
-
-    protected function convertText()
-    {
-        foreach (array_merge($this->mediaOptions, [''=>'']) as $btMedia => $twMedia) {
-            $this->searchAndReplace('text'.(empty($btMedia) ? '' : '-').'-'.$btMedia.'-left', (empty($twMedia) ? '' : $twMedia.':').'text-left');
-            $this->searchAndReplace('text'.(empty($btMedia) ? '' : '-').'-'.$btMedia.'-right', (empty($twMedia) ? '' : $twMedia.':').'text-right');
-            $this->searchAndReplace('text'.(empty($btMedia) ? '' : '-').'-'.$btMedia.'-center', (empty($twMedia) ? '' : $twMedia.':').'text-center');
-            $this->searchAndReplace('text'.(empty($btMedia) ? '' : '-').'-'.$btMedia.'-justify', (empty($twMedia) ? '' : $twMedia.':').'text-justify');
-        }
-
-        $this->searchAndReplace('text-nowrap', 'whitespace-no-wrap');
-        $this->searchAndReplace('text-truncate', 'truncate');
-
-        $this->searchAndReplace('text-lowercase', 'lowercase');
-        $this->searchAndReplace('text-uppercase', 'uppercase');
-        $this->searchAndReplace('text-capitalize', 'capitalize');
-
-        $this->searchAndReplace('initialism', '');
-        $this->searchAndReplace('lead', 'text-lg font-light');
-        $this->searchAndReplace('small', 'text-sm');
-        $this->searchAndReplace('mark', '');
-        $this->searchAndReplace('display-1', 'text-xl');
-        $this->searchAndReplace('display-2', 'text-2xl');
-        $this->searchAndReplace('display-3', 'text-3xl');
-        $this->searchAndReplace('display-4', 'text-4xl');
-
-        $this->searchAndReplace('h-1', 'mb-2 font-medium leading-tight text-4xl');
-        $this->searchAndReplace('h-2', 'mb-2 font-medium leading-tight text-3xl');
-        $this->searchAndReplace('h-3', 'mb-2 font-medium leading-tight text-2xl');
-        $this->searchAndReplace('h-4', 'mb-2 font-medium leading-tight text-xl');
-        $this->searchAndReplace('h-5', 'mb-2 font-medium leading-tight text-lg');
-        $this->searchAndReplace('h-6', 'mb-2 font-medium leading-tight text-base');
-
-        $this->searchAndReplace('blockquote', 'mb-6 text-lg');
-        $this->searchAndReplace('blockquote-footer', 'block text-gray-500');
-
-        $this->searchAndReplace('font-weight-bold', 'font-bold');
-        $this->searchAndReplace('font-weight-normal', 'font-normal');
-        $this->searchAndReplace('font-weight-light', 'font-light');
-        $this->searchAndReplace('font-italic', 'italic');
-    }
-
-    protected function convertFloats()
-    {
-        foreach ($this->mediaOptions as $btMedia => $twMedia) {
-            foreach (['left', 'right', 'none'] as $alignment) {
-                $this->searchAndReplace('float-'.$btMedia.'-'.$alignment, $twMedia.':float-'.$alignment);
-            }
-        }
-    }
-
-    protected function convertPositioning()
-    {
-        foreach ([
-            'position-static' => 'static',
-            'position-relative' => 'relative',
-            'position-absolute' => 'absolute',
-            'position-fixed' => 'fixed',
-            'position-sticky' => '',
-            'fixed-top' => 'top-0',
-            'fixed-bottom' => 'bottom-0',
-        ] as $btPosition => $twPosition) {
-            $this->searchAndReplace($btPosition, $twPosition);
-        }
-    }
-
-    protected function convertVerticalAlignment()
-    {
-        //same
-        // foreach ([
-        //     'baseline', 'top', 'middle', 'bottom', 'text-top', 'text-bottom'
-        // ] as $btAlign=> $twAlign) {
-        //     $this->searchAndReplace('align-'.$btAlign, 'align-'.$twAlign);
-        // }
-    }
-
-    protected function convertVisibility()
-    {
-        //same
-    }
-
-    protected function convertAlerts()
-    {
-        $this->searchAndReplace('alert', 'relative px-3 py-3 mb-4 border rounded');
-        $this->searchAndReplace('alert-heading', ''); //color: inherit
-        $this->searchAndReplace('alert-link', 'font-bold');
-        $this->searchAndReplace('alert-dismissible', '');
-
-        foreach ($this->colors as $btColor => $twColor) {
-            $this->searchAndReplace('alert-'.$btColor, 'text-'.$twColor.'-800'.' border-'.$twColor.'-dark bg-'.$twColor.'-200');
-        }
-    }
-
-    protected function convertBadges()
-    {
-        $this->searchAndReplace('badge', 'inline-block p-1 text-center font-semibold text-sm align-baseline leading-none rounded');
-        $this->searchAndReplace('badge-pill', 'rounded-full py-1 px-3');
-
-        foreach ($this->colors as $btColor => $twColor) {
-            if ($btColor === 'dark') {
-                $this->searchAndReplace('badge-'.$btColor, 'text-white bg-black');
-            } elseif ($btColor == 'light') {
-                $this->searchAndReplace('badge-'.$btColor, 'text-black bg-gray-400');
-            } else {
-                $this->searchAndReplace('badge-'.$btColor, 'text-'.$twColor.'-800'.' bg-'.$twColor.'-400');
-            }
-        }
-    }
-
-    protected function convertBreadcrumb()
-    {
-        $this->searchAndReplace('breadcrumb', 'flex flex-wrap pt-3 pb-3 py-4 px-4 mb-4 bg-gray-400 rounded');
-        $this->searchAndReplace('breadcrumb-item', 'inline-block px-2 py-2 text-gray-600');
-    }
-
-    protected function convertButtons()
-    {
-        $this->searchAndReplace('btn', 'inline-block align-middle text-center select-none border font-normal whitespace-no-wrap py-2 px-4 rounded text-base leading-normal');
-        $this->searchAndReplace('btn-group', 'relative inline-flex align-middle');
-        $this->searchAndReplace('btn-group-vertical', 'relative inline-flex align-middle flex-col items-start justify-center');
-        $this->searchAndReplace('btn-toolbar', 'flex flex-wrap justify-start');
-        $this->searchAndReplace('btn-link', 'font-normal blue bg-transparent');
-        $this->searchAndReplace('btn-block', 'block w-full');
-
-        foreach ([
-            'sm' => 'py-1 px-2 text-sm leading-tight',
-            'lg' => 'py-3 px-4 text-xl leading-tight',
-        ] as $btMedia => $twClasses) {
-            $this->searchAndReplace('btn-'.$btMedia, $twClasses);
-            $this->searchAndReplace('btn-group-'.$btMedia, $twClasses);
-        }
-
-        foreach ($this->colors as $btColor => $twColor) {
-            $this->searchAndReplace('btn-'.$btColor, 'text-'.$twColor.'-100 bg-'.$twColor.'-500 hover:bg-'.$twColor.'-400');
-            $this->searchAndReplace('btn-outline-'.$btColor, 'text-'.$twColor.'-600 border-'.$twColor.'-500 bg-white hover:bg-'.$twColor.'-400 hover:text-'.$twColor.'-800');
-        }
-    }
-
-    protected function convertCards()
-    {
-        $this->searchAndReplace('card', 'relative flex flex-col min-w-0 rounded break-words border bg-white border-1 border-gray-400');
-        $this->searchAndReplace('card-body', 'flex-auto p-6');
-        $this->searchAndReplace('card-title', 'mb-3');
-        $this->searchAndReplace('card-text', 'mb-0');
-        $this->searchAndReplace('card-subtitle', '-mt-2 mb-0');
-        $this->searchAndReplace('card-link', 'ml-6');
-        $this->searchAndReplace('card-header', 'py-3 px-6 mb-0 bg-gray-200 border-b-1 border-gray-400 text-black');
-        $this->searchAndReplace('card-footer', 'py-3 px-6 bg-gray-200 border-t-1 border-gray-400');
-        $this->searchAndReplace('card-header-tabs', 'border-b-0 -ml-2 -mb-3');
-        $this->searchAndReplace('card-header-pills', '-ml-3 -mr-3');
-        $this->searchAndReplace('card-img-overlay', 'absolute inset-y-0 inset-x-0 p-6');
-        $this->searchAndReplace('card-img', 'w-full rounded');
-        $this->searchAndReplace('card-img-top', 'w-full rounded rounded-t');
-        $this->searchAndReplace('card-img-bottom', 'w-full rounded rounded-b');
-        $this->searchAndReplace('card-deck', 'flex flex-col sm:flex-wrap sm:-ml-1 sm:-mr-1');
-        $this->searchAndReplace('card-group', 'flex flex-col');
-    }
-
-    protected function convertDropdowns()
-    {
-        $this->searchAndReplace('dropdown', 'relative');
-        $this->searchAndReplace('dropup', 'relative');
-        $this->searchAndReplace('dropdown-toggle', ' inline-block w-0 h-0 ml-1 align border-b-0 border-t-1 border-r-1 border-l-1');
-        $this->searchAndReplace('dropdown-menu', ' absolute left-0 z-50 float-left hidden py-2 mt-1 text-base bg-white border border-gray-400 rounded');
-        $this->searchAndReplace('dropdown-divider', 'h-0 my-2 overflow-hidden border-t-1 border-gray-400');
-        $this->searchAndReplace('dropdown-item', 'block w-full py-1 px-6 font-normal text-black whitespace-no-wrap border-0');
-        $this->searchAndReplace('dropdown-header', 'block py-2 px-6 mb-0 text-sm text-gray-600 whitespace-no-wrap');
-    }
-
-    protected function convertForms()
-    {
-        $this->searchAndReplace('form-group', 'mb-4');
-        $this->searchAndReplace('form-control', 'block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-500 rounded');
-        $this->searchAndReplace('form-control-lg', 'py-2 px-4 text-lg leading-normal rounded');
-        $this->searchAndReplace('form-control-sm', 'py-1 px-2 text-sm leading-normal rounded');
-        $this->searchAndReplace('form-control-file', 'block appearance-none');
-        $this->searchAndReplace('form-control-range', 'block appearance-none');
-
-        $this->searchAndReplace('form-inline', 'flex items-center');
-
-        $this->searchAndReplace('col-form-label', 'pt-2 pb-2 mb-0 leading-normal');
-        $this->searchAndReplace('col-form-label-lg', 'pt-3 pb-3 mb-0 leading-normal');
-        $this->searchAndReplace('col-form-label-sm', 'pt-1 pb-1 mb-0 leading-normal');
-
-        $this->searchAndReplace('col-form-legend', 'pt-2 pb-2 mb-0 text-base');
-        $this->searchAndReplace('col-form-plaintext', 'pt-2 pb-2 mb-0 leading-normal bg-transparent border-transparent border-r-0 border-l-0 border-t border-b');
-
-        $this->searchAndReplace('form-text', 'block mt-1');
-        $this->searchAndReplace('form-row', 'flex flex-wrap -mr-1 -ml-1');
-        $this->searchAndReplace('form-check', 'relative block mb-2');
-        $this->searchAndReplace('form-check-label', 'text-gray-600 pl-6 mb-0');
-        $this->searchAndReplace('form-check-input', 'absolute mt-1 -ml-6');
-
-        $this->searchAndReplace('form-check-inline', 'inline-block mr-2');
-        $this->searchAndReplace('valid-feedback', 'hidden mt-1 text-sm text-green');
-        $this->searchAndReplace('valid-tooltip', 'absolute z-10 hidden w-4 font-normal leading-normal text-white rounded p-2 bg-green-600');
-        $this->searchAndReplace('is-valid', 'bg-green-600');
-        $this->searchAndReplace('invalid-feedback', 'hidden mt-1 text-sm text-red');
-        $this->searchAndReplace('invalid-tooltip', 'absolute z-10 hidden w-4 font-normal leading-normal text-white rounded p-2 bg-red-600');
-        $this->searchAndReplace('is-invalid', 'bg-red-600');
-    }
-
-    protected function convertInputGroups()
-    {
-        $this->searchAndReplace('input-group', 'relative flex items-stretch w-full');
-        $this->searchAndReplace('input-group-addon', 'py-1 px-2 mb-1 text-base font-normal leading-normal text-black text-center bg-gray-400 border border-4 border-gray-200 rounded');
-        $this->searchAndReplace('input-group-addon-lg', 'py-2 px-3 mb-0 text-lg');
-        $this->searchAndReplace('input-group-addon-sm', 'py-3 px-4 mb-0 text-lg');
-    }
-
-    protected function convertListGroups()
-    {
-        $this->searchAndReplace('list-group', 'flex flex-col pl-0 mb-0 border rounded border-gray-400');
-        $this->searchAndReplace('list-group-item-action', 'w-fill');
-        $this->searchAndReplace('list-group-item', 'relative block py-3 px-6 -mb-px border border-r-0 border-l-0 border-gray-400');
-        $this->searchAndReplace('list-group-flush', '');
-
-        foreach ($this->colors as $btColor => $twColor) {
-            if ($btColor === 'dark') {
-                $this->searchAndReplace('list-group-item-'.$btColor, 'text-white bg-gray-600');
-            } elseif ($btColor == 'light') {
-                $this->searchAndReplace('list-group-item-'.$btColor, 'text-black bg-gray-400');
-            } else {
-                $this->searchAndReplace('list-group-item-'.$btColor, 'bg-'.$twColor.'-200 text-'.$twColor.'-900');
-            }
-        }
-    }
-
-    protected function convertModals()
-    {
-        //TODO
-    }
-
-    protected function convertNavs()
-    {
-        $this->searchAndReplace('nav', 'flex flex-wrap pl-0 mb-0');
-        $this->searchAndReplace('nav-tabs', 'border border-t-0 border-r-0 border-l-0 border-b-1 border-gray-400');
-        $this->searchAndReplace('nav-pills', '');
-        $this->searchAndReplace('nav-fill', '');
-        $this->searchAndReplace('nav-justified', '');
-
-        $navLinkClasses = 'inline-block py-2 px-4';
-        $navItemClasses = '';
-
-        if ($this->isInLastSearches('nav-tabs', 5)) {
-            $navLinkClasses .= ' border border-b-0 mx-1 rounded rounded-t';
-            $navItemClasses .= '-mb-px';
-        }
-
-        if ($this->isInLastSearches('nav-pills', 5)) {
-            $navLinkClasses .= ' border border-blue bg-blue rounded text-white mx-1';
-        }
-
-        if ($this->isInLastSearches('nav-fill', 5)) {
-            $navItemClasses .= ' flex-auto text-center';
-        }
-
-        if ($this->isInLastSearches('nav-justified', 5)) {
-            $navItemClasses .= ' flex-grow text-center';
-        }
-
-        $this->searchAndReplace('nav-link', $navLinkClasses);
-        $this->searchAndReplace('nav-item', $navItemClasses);
-
-        $this->searchAndReplace('navbar', 'relative flex flex-wrap items-center content-between py-2 px-4');
-        $this->searchAndReplace('navbar-brand', 'inline-block pt-1 pb-1 mr-4 text-lg whitespace-no-wrap');
-        $this->searchAndReplace('navbar-nav', 'flex flex-wrap pl-0 mb-0');
-        $this->searchAndReplace('navbar-text', 'inline-block pt-2 pb-2');
-        $this->searchAndReplace('navbar-collapse', 'flex-grow items-center');
-        $this->searchAndReplace('navbar-expand', 'flex-no-wrap content-start');
-        $this->searchAndReplace('navbar-expand-{regex_string}', '');
-        $this->searchAndReplace('navbar-toggler', 'py-1 px-2 text-md leading-normal bg-transparent border border-transparent rounded');
-    }
-
-    protected function convertPagination()
-    {
-        $this->searchAndReplace('pagination', 'flex pl-0 rounded');
-        $this->searchAndReplace('pagination-lg', 'text-xl');
-        $this->searchAndReplace('pagination-sm', 'text-sm');
-        $this->searchAndReplace('page-link', 'relative block py-2 px-3 -ml-px leading-normal text-blue bg-white border border-gray-500 hover:text-blue-800 hover:bg-gray-400');
-        // $this->searchAndReplace('page-link', 'relative block py-2 px-3 -ml-px leading-normal text-blue bg-white border border-grey');
-    }
-
-    /**
      * search for a word in the last searches.
-     *
-     * @param string $searchFor
-     * @param int    $limitLast limit the search to last $limitLast items
-     *
-     * @return bool
      */
-    protected function isInLastSearches(string $searchFor, $limitLast = 0)
+    protected function isInLastSearches(string $searchFor, int $limit = 0): bool
     {
         $i = 0;
 
@@ -693,7 +152,7 @@ class Converter
                 return true;
             }
 
-            if ($i++ >= $limitLast && $limitLast > 0) {
+            if ($i++ >= $limit && $limit > 0) {
                 return false;
             }
         }
@@ -701,20 +160,38 @@ class Converter
         return false;
     }
 
+    protected function addToLastSearches($search)
+    {
+        $this->changes++;
+
+        $search = stripslashes($search);
+
+        if ($this->isInLastSearches($search)) {
+            return;
+        }
+
+        $this->lastSearches[] = $search;
+
+        if (count($this->lastSearches) >= 50) {
+            array_shift($this->lastSearches);
+        }
+    }
+
     /**
      * Search the given content and replace.
      *
-     * @param string $search
-     * @param string $replace
-     *
-     * @return null
+     * @param string          $search
+     * @param string|\Closure $replace
      */
-    protected function searchAndReplace($search, $replace)
+    protected function searchAndReplace($search, $replace): void
     {
-        $currentContent = $this->givenContent;
+        if ($replace instanceof \Closure) {
+            $callableReplace = \Closure::bind($replace, $this, self::class);
+            $replace = $callableReplace();
+        }
 
-        $regexStart = !$this->isCssClassesOnly ? '(?<start>class\s*=\s*["\'].*?)' : '(?<start>\s*)';
-        $regexEnd = !$this->isCssClassesOnly ? '(?<end>.*?["\'])' : '(?<end>\s*)';
+        $regexStart = !$this->isCssClassesOnly ? '(?<start>class(?:Name)?\s*=\s*(?<quotation>["\'])((?!\k<quotation>).)*)' : '(?<start>\s*)';
+        $regexEnd = !$this->isCssClassesOnly ? '(?<end>((?!\k<quotation>).)*\k<quotation>)' : '(?<end>\s*)';
 
         $search = preg_quote($search);
 
@@ -724,8 +201,9 @@ class Converter
             if (strpos($search, '\{regex_string\}') !== false || strpos($search, '\{regex_number\}') !== false) {
                 $currentSubstitute++;
                 foreach (['regex_string'=> '[a-zA-Z0-9]+', 'regex_number' => '[0-9]+'] as $regeName => $regexValue) {
-                    $search = preg_replace('/\\\{'.$regeName.'\\\}/', '(?<'.$regeName.'_'.$currentSubstitute.'>'.$regexValue.')', $search, 1);
-                    $replace = preg_replace('/{'.$regeName.'\}/', '${'.$regeName.'_'.$currentSubstitute.'}', $replace, 1);
+                    $regexMatchCount = preg_match_all('/\\\\?\{'.$regeName.'\\\\?\}/', $search);
+                    $search = preg_replace('/\\\\?\{'.$regeName.'\\\\?\}/', '(?<'.$regeName.'_'.$currentSubstitute.'>'.$regexValue.')', $search, 1);
+                    $replace = preg_replace('/\\\\?\{'.$regeName.'\\\\?\}/', '${'.$regeName.'_'.$currentSubstitute.'}', $replace, $regexMatchCount > 1 ? 1 : -1);
                 }
 
                 continue;
@@ -734,26 +212,55 @@ class Converter
             break;
         }
 
-        //class=" given given-md something-given-md"
-        $this->givenContent = preg_replace_callback(
-            '/'.$regexStart.'(?<given>(?<![\-_.\w\d])'.$search.'(?![\-_.\w\d]))'.$regexEnd.'/i',
-             function ($match) use ($replace) {
-                 $replace = preg_replace_callback('/\$\{regex_(\w+)_(\d+)\}/', function ($m) use ($match) {
-                     return $match['regex_'.$m[1].'_'.$m[2]];
-                 }, $replace);
+        if (!preg_match_all('/'.$regexStart.'(?<given>(?<![\-_.\w\d])'.$search.'(?![\-_.\w\d]))'.$regexEnd.'/i', $this->givenContent, $matches, PREG_SET_ORDER)) {
+            return;
+        }
 
-                 return $match['start'].$replace.$match['end'];
-             },
-             $this->givenContent
-         );
+        foreach ($matches as $match) {
+            $result = preg_replace_callback(
+                '/(?<given>(?<![\-_.\w\d])'.$search.'(?![\-_.\w\d]))/',
+                function ($match) use ($replace) {
+                    $replace = preg_replace_callback('/\$\{regex_(string|number)_(\d+)\}/', function ($m) use ($match) {
+                        return $match['regex_'.$m[1].'_'.$m[2]];
+                    }, $replace);
 
-        if (strcmp($currentContent, $this->givenContent) !== 0) {
-            $this->changes++;
+                    if ($this->generateComponents && !in_array($match['given'], $this->components)) {
+                        $this->components[$match['given']] = preg_replace('/\{tailwindo\|([^\}]+)\}/', '$1', $replace);
+                    }
 
-            $this->lastSearches[] = stripslashes($search);
+                    if ($this->prefix) {
+                        $arr = explode(' ', $replace);
+                        $arr = array_map(function ($class) {
+                            $responsiveOrStatePrefix = substr($class, 0, strpos($class, ':'));
+                            if ($responsiveOrStatePrefix) {
+                                $utilityName = str_replace($responsiveOrStatePrefix.':', '', $class);
 
-            if (count($this->lastSearches) >= 10) {
-                $this->lastSearches = array_slice($this->lastSearches, -10, 10, true);
+                                return "{$responsiveOrStatePrefix}:{$this->prefix}{$utilityName}";
+                            } elseif ($class) {
+                                return "{$this->prefix}{$class}";
+                            }
+
+                            return $class;
+                        }, $arr);
+                        $arr = array_filter($arr);
+
+                        return trim(implode(' ', $arr));
+                    }
+
+                    return $replace;
+                },
+                $match[0]
+            );
+
+            if (strcmp($match[0], $result) !== 0) {
+                if ($count = preg_match_all('/\{tailwindo\|.*?\}/', $result)) {
+                    if ($count > 1) {
+                        $result = preg_replace('/\{tailwindo\|.*?\}/', '', $result, $count - 1);
+                    }
+                }
+
+                $this->givenContent = str_replace($match[0], $result, $this->givenContent);
+                $this->addToLastSearches($search);
             }
         }
     }

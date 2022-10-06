@@ -14,41 +14,55 @@ if (file_exists(__DIR__.'/vendor/autoload.php')) {
     require __DIR__.'/../../autoload.php';
 }
 
-(new Application('tailwindo', '2.1.0'))
+(new Application('tailwindo', '3.0.0'))
         
     ->register('tailwindo')
-     
+
     ->addArgument('arg', InputArgument::OPTIONAL, 'a file path/a folder path/Bootstrap CSS classes')
 
     ->addOption('replace', null, InputOption::VALUE_REQUIRED, 'This will overwrite the original file.', false)
-   
-    ->addOption('recursive', 'r', InputOption::VALUE_OPTIONAL, 'This will recurse through all directories under the main directory', false)
-    
+
+    ->addOption('components', null, InputOption::VALUE_REQUIRED, 'Extract changes as components to a separate css file in the current directory.', false)
+
+    ->addOption('recursive', 'r', InputOption::VALUE_OPTIONAL, 'This will recurs through all directories under the main directory', false)
+
     ->addOption('extensions', 'e', InputOption::VALUE_REQUIRED, 'This allows for custom extensions', 'php,html')
+
+    ->addOption('framework', 't', InputOption::VALUE_REQUIRED, 'CSS Framework type to convert', 'bootstrap')
+
+    ->addOption('prefix', 'p', InputOption::VALUE_REQUIRED, 'This allows you to add a custom prefix to all of Tailwind\'s generated utility classes', '')
 
     ->setCode(function (InputInterface $input, OutputInterface $output) {
         // output arguments and options
-        $arg = $input->getFirstArgument();
-
-        $arg = trim($arg);
+        $arg = trim($input->getFirstArgument());
 
         if (empty($arg)) {
             $output->writeln('<comment>Oops! nothing to convert.</comment>');
             return -1;
         }
-        
 
-        $replace = (bool) $input->getOption('replace');
-
-        $is_recursive = (bool) $input->getOption('recursive');
-        
-        $acceptedExts = array_map('trim', array_map(function ($ext) {
+        $acceptedExtensions = array_map('trim', array_map(function ($ext) {
             return trim($ext, '.');
         }, array_filter(explode(',', $input->getOption('extensions')), function ($ext) {
             return !empty($ext);
         })));
 
-        $consoleHelper = new ConsoleHelper($output, $is_recursive, $replace, $acceptedExts);
+        $framework = strtolower($input->getOption('framework'));
+
+        if (! class_exists('Awssat\\Tailwindo\\Framework\\' . ucfirst($framework).'Framework')) {
+            $output->writeln("<comment>Oops! {$framework} is not supported!</comment>");
+            return -1;
+        }
+
+        $consoleHelper = new ConsoleHelper($output, [
+                'recursive' => (bool) $input->getOption('recursive'),
+                'overwrite' => (bool) $input->getOption('replace'),
+                'extensions' => $acceptedExtensions,
+                'framework' => $framework,
+                'components' => (bool) $input->getOption('components'),
+                'prefix' => $input->getOption('prefix'),
+                'folderConvert' => is_dir($arg)
+            ]);
 
         //file?
         if (is_file($arg)) {
